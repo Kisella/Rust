@@ -1,0 +1,65 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 're_001'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=re_001"
+                ],
+                "filter": {
+                    "name": "re_001",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test '001_wildcard'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=001_wildcard",
+                    "--package=re_001"
+                ],
+                "filter": {
+                    "name": "001_wildcard",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test '002_character_set'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=002_character_set",
+                    "--package=re_001"
+                ],
+                "filter": {
+                    "name": "002_character_set",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

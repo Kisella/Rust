@@ -1,0 +1,12 @@
+[package]
+name = "case_022"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[package.metadata.scripts]
+run = "cargo run"
+check = "cargo check"
+build = "cargo build"
+release = "cargo build --release"

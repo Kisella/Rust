@@ -1,0 +1,21 @@
+{
+"vim.insertModeKeyBindings": [
+    {
+      "before": ["j", "k"],
+      "after": ["<Esc>"]
+    }
+  ],
+  "vim.visualModeKeyBindings": [
+    {
+      "before":["j", "k"],
+      "after":["<Esc>"]
+    }
+  ],
+  "vim.statusBarColorControl": true,
+  "vim.statusBarColors.visual": "#2d8400",
+  "vim.statusBarColors.visualblock": "#a02236",
+  "vim.statusBarColors.visualline": "#9C1958",
+  "vim.statusBarColors.replace": "#6f1f45",
+  "vim.statusBarColors.insert": "#6b55d0",
+  "vim.statusBarColors.normal": "#007575"
+}

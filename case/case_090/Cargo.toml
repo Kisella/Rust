@@ -1,0 +1,11 @@
+[package]
+name = "case_090"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+
+# 设定abort后，发生panic时将不进行清理工作，编译后的二进制文件也会略小
+[profile.release]
+panic = "abort"
