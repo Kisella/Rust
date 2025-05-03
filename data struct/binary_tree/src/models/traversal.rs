@@ -3,16 +3,18 @@ use std::{cell::RefCell, collections::VecDeque, fmt::Display, rc::Rc};
 use super::tree_node::*;
 
 impl<T: Clone + Display> BinaryTree<T> {
-    pub fn level_order_traversal(&self) {
-        if self.is_empty() {
-            return;
+    pub fn level_order_traversal(&self) -> Vec<T> {
+        if self.root.is_none() {
+            return Vec::new();
         }
         let mut curr = self.root.clone();
         let mut queue = VecDeque::new();
+        let mut res = Vec::new();
+
         queue.push_back(curr);
         while !queue.is_empty() {
             curr = queue.pop_front().unwrap();
-            println!("{}", TreeNode::value(&curr));
+            res.push(TreeNode::value(&curr));
             let lchild = TreeNode::left(&curr);
             let rchild = TreeNode::right(&curr);
             if lchild.is_some() {
@@ -22,112 +24,107 @@ impl<T: Clone + Display> BinaryTree<T> {
                 queue.push_back(rchild);
             }
         }
+        res
     }
 
-    pub fn pre_order_traversal(&self) {
+    pub fn pre_order_traversal(&self) -> Vec<T> {
         if self.root.is_none() {
-            return;
+            return Vec::new();
         }
-        // getfirst
         let mut curr = self.root.clone();
-        let mut stack = vec![];
-        if !TreeNode::is_right_empty(&curr) {
-            stack.push(TreeNode::right(&curr));
-        }
-        if !TreeNode::is_left_empty(&curr) {
-            stack.push(TreeNode::left(&curr));
-        }
+        let mut stack = vec![curr];
+        let mut res = Vec::new();
 
-        let mut get_next = |curr: &mut Option<Rc<RefCell<TreeNode<T>>>>| {
-            *curr = stack.pop().unwrap();
-            if curr.is_none() {
-                return;
-            }
+        while !stack.is_empty() {
+            curr = stack.pop().unwrap();
+            res.push(TreeNode::value(&curr));
             if !TreeNode::is_right_empty(&curr) {
                 stack.push(TreeNode::right(&curr));
             }
             if !TreeNode::is_left_empty(&curr) {
                 stack.push(TreeNode::left(&curr));
             }
-        };
-        while curr.is_some() {
-            println!("{}", TreeNode::value(&curr));
-            get_next(&mut curr);
         }
+        res
     }
 
-    pub fn mid_order_traversal(&self) {
+    pub fn mid_order_traversal(&self) -> Vec<T> {
         if self.root.is_none() {
-            return;
+            return Vec::new();
         }
-        // getfirst
         let mut curr = self.root.clone();
-        let mut stack = vec![];
-        while !TreeNode::is_left_empty(&curr) {
-            stack.push(curr.clone());
-            curr = TreeNode::left(&curr)
-        }
+        let mut stack = Vec::new();
+        let mut res = Vec::new();
 
-        let mut get_next = |curr: &mut Option<Rc<RefCell<TreeNode<T>>>>| {
-            if !TreeNode::is_right_empty(curr) {
-                let mut next = TreeNode::right(curr);
-                while !TreeNode::is_left_empty(&next) {
-                    stack.push(next.clone());
-                    next = TreeNode::left(&next);
-                }
-                *curr = next
+        while !stack.is_empty() || curr.is_some() {
+            if curr.is_some() {
+                stack.push(curr.clone());
+                curr = TreeNode::left(&curr);
             } else {
-                *curr = stack.pop().unwrap()
+                curr = stack.pop().unwrap();
+                res.push(TreeNode::value(&curr));
+                curr = TreeNode::right(&curr);
             }
-        };
-        while curr.is_some() {
-            println!("{}", TreeNode::value(&curr));
-            get_next(&mut curr);
         }
+        res
     }
 
-    pub fn post_order_traversal(&self) {
+    pub fn post_order_traversal(&self) -> Vec<T> {
         if self.root.is_none() {
-            return;
+            return Vec::new();
         }
-        // getfirst
-        let mut curr = self.root.clone();
-        let mut stack = vec![];
-        loop {
-            while !TreeNode::is_left_empty(&curr) {
-                stack.push(curr.clone());
-                curr = TreeNode::left(&curr)
-            }
-            if !TreeNode::is_right_empty(&curr) {
-                stack.push(curr.clone());
-                curr = TreeNode::right(&curr)
-            } else {
-                break;
-            }
-        }
+        let mut prev: Option<Rc<RefCell<TreeNode<T>>>> = self.root.clone();
+        let mut stack = Vec::new();
+        let mut res = Vec::new();
+        stack.push(prev.clone());
 
-        let mut get_next = |curr: &mut Option<Rc<RefCell<TreeNode<T>>>>| {
-            *curr = stack.pop().unwrap();
-            if curr.is_none() {
-                return;
+        while !stack.is_empty() {
+            let curr = stack.last().unwrap().clone();
+            if !TreeNode::is_left_empty(&curr)
+                && !Rc::ptr_eq(prev.as_ref().unwrap(), &TreeNode::left(&curr).unwrap())
+                && (TreeNode::is_right_empty(&curr) || !Rc::ptr_eq(prev.as_ref().unwrap(), &TreeNode::right(&curr).unwrap()))
+            {
+                stack.push(TreeNode::left(&curr));
+            } else if !TreeNode::is_right_empty(&curr)
+                && !Rc::ptr_eq(prev.as_ref().unwrap(), &TreeNode::right(&curr).unwrap())
+            {
+                stack.push(TreeNode::right(&curr));
+            } else {
+                res.push(TreeNode::value(&curr));
+                prev = stack.pop().unwrap();
             }
-            let mut next = curr.clone();
-            loop {
-                if !TreeNode::is_right_empty(&next) {
-                    next = TreeNode::right(&next);
-                    stack.push(next.clone());
-                } else {
-                    break;
-                }
-                while !TreeNode::is_left_empty(&next) {
-                    stack.push(next.clone());
-                    next = TreeNode::left(&next)
-                }
-            }
-        };
-        while curr.is_some() {
-            println!("{}", TreeNode::value(&curr));
-            get_next(&mut curr);
         }
+        res
+    }
+
+    pub fn pre_order_creat(mut source: VecDeque<Option<T>>) -> BinaryTree<T> {
+        let mut tree = BinaryTree::new();
+        if source.is_empty() {
+            return tree;
+        }
+        tree.root = TreeNode::new(source.pop_front().unwrap().unwrap());
+
+        let mut stack = Vec::new();
+        let mut curr = tree.root.clone();
+        let mut flag = false;    //   用于标识curr节点的左子树是否已访问
+
+
+        while !source.is_empty() {
+            let value = source.pop_front().unwrap();
+            if !flag && value.is_none() {
+                flag = true;
+            } else if !flag && value.is_some() {
+                TreeNode::left_change(&curr, value);
+                stack.push(curr.clone());
+                curr = TreeNode::left(&curr);
+            } else if flag && value.is_some() {
+                 TreeNode::right_change(&curr, value);
+                 curr = TreeNode::right(&curr);
+                 flag = false;
+            } else if !stack.is_empty() {
+                curr = stack.pop().unwrap();
+            }
+        }
+        tree
     }
 }

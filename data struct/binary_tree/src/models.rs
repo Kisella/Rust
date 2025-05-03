@@ -1,2 +1,2 @@
-mod tree_node;
-mod traversal;
+pub mod tree_node;
+pub mod traversal;
