@@ -14,23 +14,20 @@ impl Node {
         Some(Rc::new(RefCell::new(Node { value, next: None })))
     }
 
-    pub fn get(curr: &Option<Rc<RefCell<Node>>>) -> i32 {
-        (*curr.as_ref().expect("Node::get call on None!").borrow()).value
+    pub fn get(curr: &Rc<RefCell<Node>>) -> i32 {
+        (*curr.borrow()).value
     }
 
-    pub fn next(curr: &Option<Rc<RefCell<Node>>>) -> Option<Rc<RefCell<Node>>> {
-        (*curr.as_ref().expect("Node::next call on None!").borrow())
-            .next
-            .clone()
+    #[inline(always)]
+    pub fn next(curr: &Rc<RefCell<Node>>) -> Option<Rc<RefCell<Node>>> {
+        (*curr.borrow()).next.clone()
     }
 
-    pub fn last(head: &Option<Rc<RefCell<Node>>>) -> Option<Rc<RefCell<Node>>> {
-        if head.is_none() {
-            panic!("Node::last call on None!");
-        }
+    pub fn last(head: &Rc<RefCell<Node>>) -> Rc<RefCell<Node>> {
         let mut curr = head.clone();
-        while Node::next(&curr).is_some() {
-            curr = Node::next(&curr);
+
+        while (*curr.borrow()).next.is_some() {
+            curr = Node::next(&curr).unwrap();
         }
         curr
     }
@@ -42,15 +39,15 @@ impl List {
         if self.head.is_none() {
             return (*self).head = new_node;
         }
-        let last = Node::last(&self.head);
-        (*last.as_ref().unwrap().borrow_mut()).next = new_node;
+        let last = Node::last(&self.head.as_ref().unwrap());
+        (*last.borrow_mut()).next = new_node;
     }
 
     pub fn index(&self, index: usize) -> Result<Option<Rc<RefCell<Node>>>, &'static str> {
         let mut curr = self.head.clone();
         let mut i = 0;
         while curr.is_some() && i < index {
-            curr = Node::next(&curr);
+            curr = Node::next(curr.as_ref().unwrap());
             i += 1;
         }
         match i == index {
@@ -62,21 +59,21 @@ impl List {
     pub fn search(&self, value: i32) -> Result<Option<Rc<RefCell<Node>>>, &'static str> {
         let mut curr = self.head.clone();
         while curr.is_some() {
-            if Node::get(&curr) == value {
+            if Node::get(curr.as_ref().unwrap()) == value {
                 return Ok(curr);
             }
-            curr = Node::next(&curr);
+            curr = Node::next(curr.as_ref().unwrap());
         }
         Err("The value is not found in the list")
     }
 
     pub fn delete(&mut self, index: usize) {
-        if index == 0 {
-            return (*self).head = Node::next(&self.head);
+        if index == 0 && self.head.is_some() {
+            return (*self).head = Node::next(self.head.as_ref().unwrap());
         }
         let prev = self.index(index - 1).unwrap();
-        let curr = Node::next(&prev);
-        let next = Node::next(&curr);
+        let curr = Node::next(prev.as_ref().unwrap());
+        let next = Node::next(curr.as_ref().unwrap());
         (*prev.unwrap().borrow_mut()).next = next;
     }
 
@@ -94,7 +91,7 @@ impl List {
             return Err("List::pop call on empty list!");
         }
         let pop = (*self.head.as_ref().unwrap().borrow()).value;
-        (*self).head = Node::next(&self.head);
+        (*self).head = Node::next(self.head.as_ref().unwrap());
         Ok(pop)
     }
 

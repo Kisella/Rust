@@ -11,6 +11,7 @@
       "after":["<Esc>"]
     }
   ],
+  "vim.useSystemClipboard": true,
   "vim.statusBarColorControl": true,
   "vim.statusBarColors.visual": "#2d8400",
   "vim.statusBarColors.visualblock": "#a02236",

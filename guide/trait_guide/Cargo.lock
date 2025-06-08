@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "case_038"
+name = "trait_guide"
 version = "0.1.0"

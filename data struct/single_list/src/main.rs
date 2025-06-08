@@ -18,15 +18,15 @@ fn main() {
 
     let mut list = List{head: Some(Rc::new(RefCell::new(node0)))};
 
-    let a = Node::next(&list.head);
-    let b = Node::next(&a);
-    let c = Node::next(&b);
+    let a = Node::next(list.head.as_ref().unwrap());
+    let b = Node::next(a.as_ref().unwrap());
+    let c = Node::next(b.as_ref().unwrap());
     println!("{:?}", list.head);
     println!("a: {a:?}");
     println!("b: {b:?}");
     println!("c: {c:?}");
     // let d = Node::next(&c);
-    println!("last: {:?}", Node::last(&list.head));
+    println!("last: {:?}", Node::last(list.head.as_ref().unwrap()));
     
 
     // node0

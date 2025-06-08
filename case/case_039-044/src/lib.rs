@@ -3,7 +3,6 @@
  */ 
 use std::{
     fmt::{Debug, Display},
-    iter::Sum,
 };
 
 pub trait Summary {

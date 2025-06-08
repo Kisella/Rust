@@ -1,1 +1,0 @@
-H:\Rust\Algorithm\ and\ data\ structure\maxtrix_chain_multiply\target\debug\maxtrix_chain_multiply.exe: H:\Rust\Algorithm\ and\ data\ structure\maxtrix_chain_multiply\src\algrithm.rs H:\Rust\Algorithm\ and\ data\ structure\maxtrix_chain_multiply\src\lib.rs H:\Rust\Algorithm\ and\ data\ structure\maxtrix_chain_multiply\src\main.rs
