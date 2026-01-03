@@ -1,0 +1,728 @@
+# 模式匹配
+模式匹配是Rust的一种强大的特性，允许根据数据的结构来匹配值，并执行相应的代码。模式匹配广泛应用于 match 表达式、函数参数、let 语句等地方。
+```rust
+enum Direction {
+    East,
+    West,
+    North,
+    South,
+}
+
+fn main() {
+    let dire = Direction::South;
+    match dire {
+        Direction::East => println!("East"),
+        Direction::North => println!("North"),
+        Direction::South => println!("South"),
+        Direction::West => println!("West"),
+    };
+}
+```
+## 1 单元
+可独立使用，也可与结构/修饰/条件组合:
+- 字面量
+- 变量绑定
+- 范围 `.._`/`..`
+- 通配符 `_`
+- 忽略 `..`
+&nbsp;
+### 1.1 字面量
+- 字面量相等即匹配成功
+```rust
+    let x = 42;
+    match x {
+        42 => println!("It's the meaning of life."),
+        0 => println!("Zero"),
+        _ => println!("other"),
+    }
+```
+&nbsp;
+- 支持`const`/`static`
+```rust
+    // 支持 const / static
+    const ZERO: i32 = 0;
+    const LIEF: i32 = 42;
+
+    let x = 42;
+
+    match x {
+        ZERO => println!("It's zero"),
+        LIEF => println!("The meaning of life"),
+        _ => println!("Something else"),
+    }
+```
+&nbsp;
+### 1.2 变量绑定
+将变量名作为模式，如果待匹配表达式执行到对应的匹配臂且符合条件，则将待匹配表达式中对应位置的值绑定到变量上。
+- 变量名作为模式，绑定对应位置的值
+- 与其他部件结合，表达力强
+```rust
+    let x = 5;
+    match x {
+        0 => println!("I'm a zero"),
+        y => println!("got y = {}", y),  // y捕获了5，相当于发生了一次 let y = x
+    }
+```
+### 1.3 范围`..=`/`..`
+- 闭区间 `start..=end`
+- 左闭右开`start..end`
+- 用于整数/字符等支持比较范围的类型，非浮点数
+```rust
+    let score = 77;
+    match score {
+        0..=59 => println!("Fail"),
+        60..=89 => println!("Good"),
+        90..=100 => println!("Excellent"),
+        _ => println!("Invalid score"),
+    }
+```
+&nbsp;
+### 1.4 通配符`_`
+- 匹配所有剩下的值，不绑定
+- 常作`match`的最后一支
+```rust
+    let x = 0;
+    match x {
+        42 => println!("It's the meaning of life."),
+        _ => println!("Other"),  // 相当于发生一次let _ = x
+    }
+```
+&nbsp;
+### 1.5 忽略`..`
+- 在结构中忽略多个部分
+- 不能单独作为完整的模式, 必须配合其他单元使用
+```rust
+    struct Point {x:i32, y:i32, z:i32};
+
+    let p = Point {x:1, y:2, z:3};
+    match p {
+        Point {x, ..} => println!("x: {x}"),
+    }
+```
+&nbsp;
+## 2 解构
+模式匹配的5种基本组成单元，它们除了自己可以组成模式，也可以按照指定结构进行组合，这样就可以对复合结构进行精细的拆解。从而从已经耦合在一起的众多数据中精确地拿出需要的数据而忽略其他不重要的数据。
+- 对复合类型进行精细拆解
+- 解构内部可放置任意单元/模式
+
+### 2.1 元组解构
+- `(unit, uint, ...)`位置一一匹配
+- 支持`_`, `..`与范围单元
+- `_`忽略多个, `..`忽略多项（每层一次）
+
+```rust
+    let touple = (1,2,3);
+
+    match touple { 
+        (1,y,z) => println!("Start with 1: ({y} {z})"),
+        _ => ()
+    }
+
+    match touple {
+        (_, _, z) => println!("End with {z})"),
+    }
+
+    match touple {
+        (.., z) => println!("End with {z})"),
+    }
+```
+&nbsp;
+- 可使用`..`快速提取头尾元素
+- 每层最多一次`..`
+```rust
+    let touple = (1, 2, 3, 4, 5);
+    
+    match touple {
+        (a,b, ..) => println!("Start with {a} {b}"),
+    }
+
+    match touple {
+        (.., d, e,f) => println!("End with {d} {e} {f}"),
+    }
+
+    match touple {
+        (a,.., f) => println!("Start with {a}, End with {f}"),
+    }
+```
+```rust
+    match touple {
+        /* 每层最多使用一次..,否则将导致歧义
+        (.., mid, ..) => println!("The touple has {mid}"),
+         */
+        (_, _, mid, ..) => println!("The touple has {mid}"), // _和..配合使用，避免歧义
+    }
+```
+&nbsp;
+### 2.2 数组解构
+- `[unit, unit, ..]`位置一一匹配
+- 支持`_`, `..`与范围单元
+- `_`忽略多个, `..`忽略多项（每层一次）
+```rust
+    let arr = [10, 20, 30, 40];
+    
+    match arr {
+        [first, _, third, _] => println!("first = {first}, third = {third}")
+    }
+
+    match arr {
+        [first, .., last] => println!("range: {first} _ {last}"),
+    }
+
+    match arr {
+        [0..=20, second, ..] => println!("start with 10, second = {second}"),
+        _ => ()
+    }
+```
+&nbsp;
+- 对于不定长的数组，需要使用切片进行匹配`&[T]`
+- 可以匹配任意长度，分支可穷尽
+```rust
+    let vector = vec![10, 20 ,30 ,40];
+    // - 对于不定长的数组，需要使用切片进行匹配
+    match &vector[..] {
+        [] => println!("Empty vector"),
+        [x] => println!("Single element: {x}"),
+        [first, second] => println!("Two element: {first} {second}"),
+        [first, .., last] => println!("First: {first}, Last: {last}")
+    }
+```
+&nbsp;
+### 2.3 结构体解构
+- `Struct { field: pattern, ... }`
+- 每个字段可单独匹配
+```rust
+    struct Point {
+        x: i32,
+        y: i32,
+    }
+
+    let p = Point { x: 1, y: 2 };
+
+    match p {
+        Point { x: 0, y: 0 } => println!("Origin"),
+        Point { x: a, y: 0 } => println!("On x-axit: {a}"),
+        Point { x: 0, y: b } => println!("On y-axit: {b}"),
+        Point { x: a, y: b } => println!("On neither axit: ({a} {b})"),
+    }
+```
+&nbsp;
+- `x: x`可缩写为`x`
+```rust
+    struct Point {
+        x: i32,
+        y: i32,
+    }
+
+    let p = Point { x: 1, y: 2 };
+
+    match p {
+        Point { x: 0, y: 0 } => println!("Origin"),
+        Point { x, y: 0 } => println!("On x-axit: {x}"),
+        Point { x: 0, y } => println!("On y-axit: {y}"),
+        Point { x, y } => println!("On neither axit: ({x} {y})"),
+    }
+```
+&nbsp;
+- 使用`..`忽略不关心字段
+```rust
+    struct Point3D {
+        x: i32,
+        y: i32,
+        z: i32,
+    }
+
+    let p = Point3D { x: 1, y: 2, z: 3 };
+
+    match p {
+        Point3D { x: 0, y: 0, z } => println!("z is {z}"),
+        Point3D { x: 0, y, .. } => println!("y is {y}"),
+        Point3D { x, y: 0, .. } => println!("x is {x}"),
+        Point3D { z, ..} => println!("x and y both not zero, z is {z}"),
+    }
+```
+&nbsp;
+### 2.4 枚举解构
+- 无数据变体直接匹配 `Enum:Variant`
+- 使用 `_` 忽略不关心变体
+```rust
+    enum Direction {
+        East,
+        West,
+        North,
+        South,
+    }
+
+    let dire = Direction::South;
+    
+    match dire {
+        Direction::East => println!("East"),
+        Direction::West => println!("West"),
+        _ => println!("North or South"),
+    }
+```
+&nbsp;
+- 元组变体: `Enum::Variant(a, b)`
+- 同一变体可按不同约束多次匹配
+```rust
+    enum Message {
+        Quit,
+        Move(i32, i32),
+        Write(String),
+    }
+
+    let msg = Message::Move(10, 20);
+
+    match msg {
+        Message::Quit => println!("Quit"),
+        Message::Move(x, y) => println!("Move to ({x} {y})"),
+        Message::Write(s) => println!("Write: {s}"),
+    }
+```
+```rust
+    match msg {
+        Message::Quit => println!("Quit"),
+        Message::Move(0, y) => println!("Only move at Y {y}"),
+        Message::Move(x, 0) => println!("Only move at X {x}"),
+        Message::Move(x, y) => println!("Move to ({x} {y})"),
+        Message::Write(s) => println!("Write: {s}"),
+    }
+```
+&nbsp;
+- 结构体变体: `Enum::Variant { x, y, ...}`
+- 字段缩写和 `..` 的使用与结构体解构一致
+```rust
+    enum Message {
+        Quit,
+        Move{ x: i32, y: i32},
+        Write(String),
+    }
+
+    let msg = Message::Move{ x: 10, y:20};
+
+    match &msg {
+        Message::Quit => println!("Quit"),
+        Message::Move{ x, y } => println!("Move to ({x} {y})"),
+        Message::Write(s) => println!("Write: {s}"),
+    }
+```
+&nbsp;
+### 2.5 嵌套解构
+- 模式匹配可多层嵌套
+- 每层最多使用一次`..`
+- 元组 `(pattern, pattern, pattern, ...)`
+- 数组 `[pattern, pattern, pattern, ...]`
+- 结构体 `StructName { field1: pattern, field2: pattern, ... }`
+```rust
+    let arr = [(10, 20), (20, 30), (30, 40)];
+
+    match arr {
+        [(a, b), _, (30, c)] => println!("{a} {b} {c}"),
+        _ => println!("default"),
+    }
+```
+```rust
+    let arr = [(1 ,2, 3), (10 ,20, 30), (100 ,200, 300), (10 ,20, 30), (1 ,2, 3)];
+
+    match arr {
+        [(a,b, c), second, (d, ..), .., last] => println!("do nothing"),
+        _ => println!("default"),
+    }
+```
+&nbsp;
+
+## 3 修饰
+在基本单元和各种解构场景中，其实已经可以表达大多数的简单逻辑。Rust还提供了一些修饰符，他们不是独立的新模式，而是对已有模式的加强。
+- `mut` : 变量可变性
+- `&` / `&mut` `in expr` : 取得引用
+- `ref` / `ref mut` : 附加引用
+- `&` / `&mut` `in pattern` : 拆解引用
+- `match ergonomics` : 自动推断引用
+- `@` : 匹配 + 绑定
+### 3.1 `mut` 可变性
+- `mut pattern(variable)`
+- Rust 中的变量默认是不可变的，可在模式中使用`mut`关键字将绑定的变量声明为可变
+```rust
+    let x = 10;
+    x += 1;   //  Rust拒绝，x为不可变
+```
+```rust
+    let mut x = 10;
+    x += 1;   //  Rust接受，x为可变
+```
+```rust
+    let s = String::from("hello");
+
+    match s {
+        // 相当与发生了一次 let mut x = s; 字符串重新变为可变，同时发生所有权的移动
+        mut x => x.push_str(" world"),
+    }
+```
+&nbsp;
+### 3.2 `&` 引用
+- `& expr` / `&mut expr`
+- 模式匹配默认进行的是值匹配，这意味着模式匹配往往会发生所有权的移动
+- 在**待匹配表达式前**使用 `&` 或 `& mut` 修饰符，可取得变量的不可变引用或可变引用，在不移动所有权的前提下进行值的读取或修改
+```rust
+    let s = String::from("hello");
+
+    match s {
+        mut x => x.push_str(" world"),
+    }
+
+    println!("{s}");  //  拒绝，所有权已移动给x
+```
+```rust
+    let mut s = String::from("hello");
+
+    match &mut s {
+        x => x.push_str(" world"),  // 此处的 x 为 &mut String 类型，s的可变引用
+    }
+
+    println!("{s}");  //  接受，所有权未发生移动
+```
+&nbsp;
+### 3.3 `ref` 引用
+- `ref pattern(variable)` / `ref mut pattern(variable)`
+- 在变量绑定的模式中使用关键字 `ref` 同样可以取得待匹配表达式的引用，效果与在待匹配表达式中使用`&`等价
+```rust
+    let x = 10;
+    let ref1 = &x;
+    let ref ref2 = x;  //   两种写法完全等价
+    assert_eq!(ref1, ref2);
+```
+```rust
+    let mut s = String::from("hello");
+
+    match s {
+        ref mut x => x.push_str(" world"),  // 此处的 x 为 &mut String 类型, s 的可变借用
+    }
+
+    println!("{s}");  //  接受，所有权未发生移动
+```
+&nbsp;
+### 3.4 `&` 引用拆解
+- `&pattern(variable)`
+- 若待匹配表达式是一个引用，在模式用使用 `&` 可直解引用得到值
+- 可连写多层 `&`
+- 不能通过 `&` 拆解来移动所有权
+```rust
+    let x = 10;
+    let r = &x
+
+    // 需要手动解引用
+    match r {
+        val => i32::abs(*val),
+    };
+
+    // 模式中使用&T, 自动拆掉引用
+    match r {
+        &val => i32::abs(val),
+    };
+
+    // 可连写多层&, 拆掉多层借用
+    match &&r {
+        &&&val => i32::abs(val),
+    };
+```
+```rust
+    let s = String::from("hello");
+    let r = &s;
+
+    match r {
+        &val => println!("{val}"), // 拒绝，不能依靠&拆解来移动所有权
+    }
+```
+&nbsp;
+### 3.5 `match ergomics`
+- 待匹配表达式为 `&T`/`&mut T` 时，内层自动带入 `ref` / `ref mut`
+- 模式匹配到引用时，人体工学自动拆解引用，并将外层的引用带入内层数据中
+```rust
+    let m = Some(String::from("hellow"));
+
+    // 本源写法，需要手动拆解和添加内层ref
+    match &m {
+        &Some(ref msg) => println!("val = {msg}"),
+        None => println!("none"),
+    }
+
+    // 人体工学写法，自动将外部的引用带入内部
+    match &m {
+        Some(msg) => println!("val = {msg}"),
+        None => println!("none"),
+    }
+```
+
+- 待匹配表达式为借用, 且模式中没有`&`用于拆解借用时 => 触发人体工学
+```rust
+    let x = Some(10);
+    
+    match &x {
+        &Some(val) => println!("val = {val}"),  //  未触发人体工学，值发生复制，编程规范不推荐
+        None => println!("none")
+    }
+
+    match &x {
+        &Some(ref val) => println!("val = {val}"),  //  未触发人体工学，拿到内部数据的引用，可选
+        None => println!("none")
+    }
+
+    match &x {
+        Some(val) => println!("val = {val}"),  //  触发人体工学，内部数据自动代入引用，推荐
+        None => println!("none")
+    }
+```
+&nbsp;
+- 人体工学的触发是嵌套的
+```rust
+    match (&(10, 20), &(30, 40)) {
+        ((x,y), &(a,b)) => println!("{x} {y} {a} {b} "), // x, y: &i32; a, b: i32
+    }
+```
+&nbsp;
+- 人体工学会拆掉多层引用，但内层引用只代入一层
+```rust
+    match &&&&&&&x {
+        Some(val) => println!("val = {val}"),
+        None => println!("none")
+    }
+```
+&nbsp;
+- 多层混合的场景下，人体工学优先保留不可变引用 `ref`
+```rust
+    match &mut (10, &(20, 30)) {
+        // x: &mut i32, y: &i32, z: &i32
+        (x, (y, z)) => println!("values: {x} {y} {z}")
+    }
+
+    match &(10, &mut (20, 30)) {
+        // x: &mut i32, y: &i32, z: &i32
+        (x, (y, z)) => println!("values: {x} {y} {z}")
+    }
+```
+&nbsp;
+- 待匹配表达式本身为引用类型时，人体工学会导致多层引用
+```rust
+    match &(&10, 20) {
+        // x: &&i32, y: &i32
+        (x, y) => println!("values : {x} {y}"),
+    }
+```
+
+
+&nbsp;
+### 3.6 `@` 绑定
+- `variable @ pattern`
+- 若模式匹配成功，则把待匹配表达式的值再赋值给左边的variable
+```rust
+    struct Ticket {
+        used: bool,
+        owner: String,
+    }
+
+    impl Ticket {
+        fn consume(&mut self) {
+            self.used = true
+        }
+    }
+
+    let t = Ticket {
+        used: false,
+        owner: String::from("Jack"),
+    };
+
+    // 变量t移动到了新的变量tic上，并被声明为可变
+    match t {
+        mut tic @ Ticket {used: false, ..} => tic.consume(),
+        _ => println!("Nothing"),
+    }
+```
+- 配合使用 `ref` `mut` `&` 等修饰符可绑定待匹配表达式的引用，从而避免所有权的移动
+```rust
+    let mut t = Ticket {
+        used: false,
+        owner: String::from("Jack"),
+    };
+
+    // 两种写法效果等价
+    match &mut t {
+        tic @ Ticket {used: false, ..} => tic.consume(),
+        _ => println!("Nothing"),
+    }
+
+    match t {
+        ref mut tic @ Ticket {used: false, ..} => tic.consume(),
+        _ => println!("Nothing"),
+    }
+```
+&nbsp;
+- 数组中可用 `@` 绑定 `..` 省略片段
+```rust
+    let arr = [1, 2, 3, 4, 5];
+    match arr {
+        [first, mid @ .., last] => println!("{first} {mid:?} {last}"),
+    }
+```
+&nbsp;
+## 4 条件
+### 4.1 多重模式`|`
+- `p1 | p2 | p3| ... => ...`
+- 多个模式分支的行为完全相同，可以使用`|`将多个模式写在一起
+- 本质上是不同模式之间的逻辑或
+```rust
+    let score = 80;
+
+    match score {
+        0..40 | 95..=100 => println!("Focus on"),
+        40..95 => println!("Normal"),
+        _ => println!("Invalid score"),
+    }
+```
+&nbsp;
+### 4.2 守卫`if`
+- `pattern if condition => {...}` 
+- 先匹配，再判断条件
+- 守卫`if`中可使用已绑定的变量
+- 守卫`if`后面的条件实际上也是一个模式，本质上是不同模式之间的逻辑与
+```rust
+    let num = 10;
+
+    match num {
+        n if n % 2 == 0 => println!("Even number"),
+        n if n % 2 == 1 => println!("Odd number"),
+        _ => println!("Something else"),
+    }
+```
+&nbsp;
+- 多重模式和守卫`if`可以配合使用
+- 先匹配多重模式再进行守卫`if`的判断
+```rust
+    let ch = 'x';
+
+    match ch {
+        'a'..='z' | 'A'..='Z' if ch != 'x' => println!("Other letter"),
+        'x' => println!("The special x"),
+        _ => println!("Not a letter"),
+    }
+```
+&nbsp;
+## 5 使用场景
+### 5.1 `let` 绑定
+- `let pattern: T = expression`
+- `pattern` 必须是不可反驳模式, 变量绑定需能推断类型
+- 最常见的模式匹配使用场景，用于变量的声明和绑定
+
+```rust
+let (x, y, _) = (1, 2, 3);
+let [a, b, ..] = [1, 2, 3];
+let Point {x: a, ..} = p;
+let mut x = 10;
+let ref mut r_x = x;
+let r_x = &mut x;
+```
+&nbsp;
+### 5.2 `if let` 单一模式匹配
+- `if let pattern = expr {...}`
+- 单一模式匹配场景下替代 `match`
+```rust
+    let op = Option::from(10);
+
+    if let Some(value) = op {
+        println!("Value : {value}");
+    }
+
+    // 效果等价与
+    match op {
+        Some(value) => println!("Value: {value}"),
+        _ => (),
+    }
+```
+&nbsp;
+### 5.3 `let else` 例外模式匹配
+- `let pattern = expr else {...!}`
+- 匹配失败时执行`else`
+- `else` 分支必须发散
+```rust
+    let op = Option::from(10);
+
+    let Some(value) = op else {
+        panic!("No value!");
+    };
+
+    println!("value = {value}");
+```
+&nbsp;
+### 5.4 `while let` 持续模式匹配
+- `while let pattern = expr {...}`
+- 匹配成功持续循环, 失败退出
+```rust
+    let mut stack = vec![1, 2, 3];
+
+     while let Some(top) = stack.pop() {
+        println!("Poped {top}");
+     }
+```
+&nbsp;
+### 5.5 `for` 迭代模式匹配
+- `for pattern in iterable_expr`
+- `in` 后面的表达式必须是可迭代的，迭代的对象就是待匹配表达式
+- `pattern`必须是不可反驳模式
+```rust
+     let map = vec![("a", 1), ("b", 2)];
+
+     for (k, v) in map {
+        println!("{k}: {v}");
+     }
+```
+&nbsp;
+### 5.6 函数参数
+- 声明: `fn func(pattern: T, ...)`
+- 调用: `func(expr, ...)`
+- `pattern` 必须是不可反驳模式，变量绑定必须显式指定类型
+```rust
+fn process_tuple((a, b, c): (i32, f64, &str)) {
+    println!("解构元组：a={a}, b={b}, c={c}");
+}
+
+fn process_array([first, mid@.., last]: [i32;5]) {
+    println!("解构数组: [{first} {mid:?} {last}]");
+}
+
+fn process_struct(Point {x:a, y:b}: Point) {
+    println!("解构Struct: a={a}, b={b}");
+}
+
+fn process_struct_with_bind(point @ Point {x, y}: Point) {
+    println!("解构Struct: x={x}, y={y}");
+}
+```
+&nbsp;
+### 5.7 `match!`宏
+- `match!(expr, pattern)`
+- 返回布尔值，判断表达式和模式是否匹配
+```rust
+let is_dight = match!('5', '0'..='9');
+```
+
+## 6 反驳与不可反驳模式
+## 6.1 不可反驳模式
+- 要求模式和表达式必须匹配成功，不会失败。最常见的不可反驳模式为变量绑定。
+- 变量绑定（同时也是声明），必须显式指定类型或者能够从上下文推断出
+- 使用场景如下:
+    - `let` 绑定
+    - 函数参数
+    - `for` 循环
+```rust
+    let (10, y, z) = (1, 2, 3);  // 可反驳模式，匹配失败，Rust拒绝
+    let (1, y, z) = (1, 2, 3);   // 无条件匹配成功，但不改变可反驳模式的形式，Rust拒绝
+    let (_, y, z) = (1, 2, 3);   // 不可反驳模式，Rust接受
+```
+&nbsp;
+## 6.2 可反驳模式
+- 可能匹配成功，也可能匹配失败
+- 场景的可反驳模式有字面量/范围/守卫`if`/枚举变体等
+- 变量绑定的类型已经由上文中的不可反驳模式唯一确定，可反驳模式不支持再指定变量的类型
+- 使用场景如下：
+    - `match`
+    - `if let`
+    - `let else`
+    - `while let`
