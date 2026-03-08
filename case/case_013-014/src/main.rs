@@ -12,7 +12,7 @@ fn main() {
     let mut y = 1;
     let mut reference = &x;
     println!("{reference}");
-    reference = &mut y; //   reference是可变的，故可以变化绑定为y的引用，但需要注意，这里的mut关键字是不无效的, 因为reference的类型已经被确定为不可变的&i32
+    reference = &mut y; //   reference是可变的，故可以变化绑定为y的引用，但需要注意，这里的mut关键字是无效的, 因为reference的类型已经被确定为不可变的&i32
     println!("{reference}");
     // *reference += 1;   //   reference的类型依然是&i32不可变引用，故不能修改y的值
     println!("Compiling error!");
