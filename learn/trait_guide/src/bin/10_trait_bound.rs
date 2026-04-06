@@ -6,9 +6,23 @@ use std::fmt::Display;
 //     if a > b { a } else { b } //  编译失败，不是任何类型都支持比较大小。
 // }
 
+// 显式地显式泛型
 fn get_max<T: PartialOrd>(a: T, b: T) -> T {
-    if a > b { a } else { b } //  编译失败，不是任何类型都支持比较大小。
+    if a > b { a } else { b }
 }
+
+// 编译失败。由于没有显式指定泛型，编译器只能默认认为a和b是不同类型，进而导致编译器认为函数返回了多个类型
+// fn get_max(a: impl PartialOrd, b: impl PartialOrd) -> impl PartialOrd {
+//     if a > b { a } else { b }
+// }
+
+// 也可以`impl`语法和泛型参数组合使用
+fn get_max2<T: PartialOrd>(a: T, b: T) -> impl PartialOrd {
+    if a > b { a } else { b }
+}
+
+
+
 
 struct Point<T> {
     x: T,

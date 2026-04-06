@@ -375,6 +375,35 @@ fn get_max<T: PartialOrd> (a: T, b: T) -> T {
     if a > b { a } else { b }
 }
 ```
+&nbsp;
+- `var: impl Trait_1 + Trait_2`
+- 在参数或返回值中使用`impl`关键字，是泛型特征约束的一种简便写法，不用显式地写出泛型
+- 泛型可以根据Turbofish语法显式指定类型，而使用`impl`只能编译器自行推导类型
+```rust
+fn func(arg: impl Trait_1 + Trait_2);
+```
+等效与以下代码:
+```rust
+fn func<T: Trait_1 + Trait_2>(arg: T);
+```
+- 在编译器不能准确推断出类型时，`impl`语法不适用
+```rust
+// 显式地显式泛型，编译通过
+fn get_max<T: PartialOrd>(a: T, b: T) -> T {
+    if a > b { a } else { b }
+}
+
+// 编译失败。由于没有显式指定泛型，编译器只能默认认为a和b是不同类型，进而导致编译器认为函数返回了多个类型
+fn get_max(a: impl PartialOrd, b: impl PartialOrd) -> impl PartialOrd {
+    if a > b { a } else { b }
+}
+
+// 也可以`impl`语法和泛型参数组合使用
+fn get_max<T: PartialOrd>(a: T, b: T) -> impl PartialOrd {
+    if a > b { a } else { b }
+}
+```
+&nbsp;
 - `impl`块中使用特征约束，为一系列类型提供通用实现
 ```rust
 struct Point<T> {
@@ -446,12 +475,11 @@ impl Container for News {
     type Item = String;
 }
 ```
-NewsNews
 &nbsp;
 ### 2.7 Blanket Implementation
 - 语法`impl<T: Trait_1 + Trait_2 + ...> Trait for Type<T>`
 - 为实现了某些Trait的所有类型实现一个Trait
-- 为一系列类型提供通用实现
+- `impl`带上泛型，表明为一系列类型提供实现
 ```rust
 use std::fmt::Display;
 trait Introduce: Display {
@@ -566,3 +594,197 @@ where
     leader.say_hello();
 }
 ```
+&nbsp;
+## 3 抽象类型
+在面向对象语言中，父类型可以接收子类型为参数，从而实现多态。例如`Duck`、`Person`、`Dog`都可以游泳，都有`swim`方法，都继承`Swimmer`类，函数参数接收`Swimmer`指针，实际可传入任意子类型。
+Rust不是原生的面向对象语言，但提供类似的机制，即**Trait对象**
+## 3.1 Trait 对象
+把实现了某个Trait的所有类型看做一个集合，这个集合又可以看做一个新的抽象的类型，称作**Trait对象**
+- 函数参数类型声明中使用`&dyn Trait`声明接收一个Trait对象
+- Trait对象必须基于借用、指针、智能指针来间接使用
+```rust
+// 定义对象
+struct Duck;
+struct Person;
+struct Dog;
+
+// 定义共同行为
+trait Swimmer {
+    fn swim(&self);
+}
+
+// Duck, Person, Dog都实现了Swimmer特质，所有都属于抽象类型&dyn Swimmer
+impl Swimmer for Duck {
+    fn swim(&self) {
+        println!("Duck paddles through the pond.");
+    }
+}
+impl Swimmer for Person {
+    fn swim(&self) {
+        println!("Person swims freestyle.");
+    }
+}
+impl Swimmer for Dog {
+    fn swim(&self) {
+        println!("Dog does the doggy paddle.");
+    }
+}
+
+// 定义函数，接受一个Trait Object作为参数参数
+fn make_swim(swimmer: &dyn Swimmer) {
+    swimmer.swim();
+}
+
+fn main() {
+    let duck = Duck;
+    let person = Person;
+    let dog = Dog;
+
+    make_swim(&duck);
+    make_swim(&person);
+    make_swim(&dog);
+}
+```
+&nbsp;
+## 3.2 动态大小类型
+对于一个Trait来说，它可以被多个类型实现，而实现它的各种类型之间大小可能是不同的。故Trait对象`dyn Trait`是一个动态大小类型(DST)。动态大小类型不能在函数中直接使用，因为函数的栈帧大小需要在编译期就要确定，因此需要一个指针来间接操作动态大小类型。
+- 实现Trait的类型的大小是不确定的
+- Trait对象作为一个大小不确定的抽象类型只能通过指针作为函数参数
+&nbsp;
+## 3.3 虚表
+指向Trait对象的指针`&dyn Trait`是一个**胖指针**，包含`data`指针和`v-ptr`指针两部分
+- `data`指针指向`Self`, 即实现了该Trait的具体类型
+- `v-ptr`指向`v-table`, 即**虚表**，虚表中存储了类型`Self`的信息，包括size、对其方式、trait方法等
+- 同一个Trait对象，虚表内部的结构是确定的，所以无论`v-ptr`指向哪个类型的虚表，都可以正确地找到对应实现的Trait方法
+
+通过`data`和`v-ptr`这两个指针，Trait对象在调用方法时就可以方便地获得函数地址和传递参数
+&nbsp;
+## 3.4 动态分发
+在调用Trait对象的对应Trait方法时，首先将胖指针`&dyn Trait`拆成`data`和`v-ptr`, 随后依据固定的虚表布局找到对应偏移量的函数指针，直接通过这个函数指针将参数传递就完成了调用。
+```rust
+    let (data, vptr) = demo // 拆胖指针
+    let f = vptr[4]         // 偏移量 4 是 func2 的槽位
+    f(data);                // 调用
+```
+上述Trait对象调用Trait方法的过程发生在**运行时**，只有在运行时才能确定要调用的函数的地址，这个过程需要查表、传参，因此运行时效率会有所降低，但灵活性会有所提高
+这种运行时通过虚表和偏移量查找函数并调用的过程，称为动态分发(Dynamic Dispatch)。因为“动态”是dynamic，所以Trait对象使用了`dyn`关键字
+- 一个类型实现了某个trait时就会生成对应的虚表
+- 同一个类型的所有实例共用同一张虚表
+- 运行时Trait对象通过查虚表，即时获得函数的地址
+## 3.5 多Trait动态分发
+实际开发中，时常会遇到需要对实现了多个Trait的对象进行动态分发的场景
+- 某类型同时实现了多个Trait
+- 在运行时通过Trait对象来调用这些trait方法
+正确做法是用一个新的Trait去依赖所有需要的trait, 将其打包成一个组合trait, 然后再对这个组合trait作动态分发：
+- 定义一个新的Trait, `NewTrait`
+- 需要依赖的Trait作为`NewTrait`的SuperTrait
+- 使用`&dyn NewTrait`作为Trait对象
+```rust
+// 定义基础TraitTrait
+use std::fmt::Debug;
+
+trait Foo {
+    fn foo(&self);
+}
+
+trait Bar {
+    fn bar(&self);
+}
+
+// 定义类型，并实现基础trait
+#[derive(Debug)]
+struct S;
+impl Foo for S {
+    fn foo(&self) {
+        println!("foo");
+    }
+}
+
+impl Bar for S {
+    fn bar(&self) {
+        println!("bar");
+    }
+}
+
+// 定义组合trait，依赖基础trait
+trait FooBarDebug: Foo + Bar + Debug {}
+
+// 使用Blanket实现，为所有实现了Foo、Bar和Debug的类型自动实现FooBarDebug
+impl<T> FooBarDebug for T where T: Foo + Bar + Debug {}
+
+// 定义函数，接受一个组合trait对象作为参数
+fn call_all(x: &dyn FooBarDebug) {
+    x.foo();
+    x.bar();
+    println!("{:?}", x);
+}
+
+fn main() {
+    let s: S = S;
+    call_all(&s);
+}
+```
+## 3.6 动态分发限制
+一个Trait能够成为Trait对象并进行动态分发，它就被称为`dyn-compatible`, 一个Trait要能够动态分发必须满足以下五个条件，否则就不能够进行动态分发：
+- SurperTrait都是`dyn-compatible`
+- SurperTrait中不能有`Sized`
+- 不能有关联常量
+- 不能有带泛型的关联类型
+- 所有函数必须可动态分发或显式标记为不可调用
+### 3.6.1 SurperTrait中不能有`Sized`
+`Sized`是一个原生的Trait, 他表示类型的大小是固定的。而Trait对象是一个动态大小类型，没有确定的大小，这与`Sized`约束是冲突的。
+-  绝大部分Trait默认依赖`?Sized`, 表示不限制类型的大小
+-  当一个Trait受到`Sized`约束，它就不能作为Trait对象
+```rust
+trait Demo: Sized {} // 不能作为Trait对象
+```
+&nbsp;
+### 3.6.2 不能有关联常量
+方法可以通过虚表动态分发到正确的函数指针，但常量不是函数调用，无法通过虚表动态查找一个常量的值。故Trait对象要禁止关联常量
+```rust
+trait Foo {
+    const A: i32;
+}
+impl Foo for u8  { const A: i32 = 1; }
+impl Foo for u16 { const A: i32 = 2; }
+// data和v-ptr中都不含有关联常量的信息
+// 问题： 如果有一个 Box<dyn Foo>, 那么dyn Foo: A 应该是1还是2?
+```
+&nbsp;
+### 3.6.3 不能有泛型关联类型
+关联类型往往在对应方法中使用，用户每指定一个泛型作为关联类型，就会单态化出一个新版的函数，最后导致虚表大小不确定，格式不一致。故Trait对象要禁止泛型关联类型
+&nbsp;
+### 3.6.4 可动态分发的函数
+并不是Trait内部的方法都会进入虚表，只有可通过Trait对象动态分发的方法才会进入虚表
+可动态分发的函数必须满足4个条件：
+- 必须使用`self`或可解引用为`self`的类型作为第一个参数（即实例方法）
+- 函数签名中不能在第一个参数意外的位置使用`Self`
+- 返回值不能是不透明类型
+- 不能有泛型参数
+#### 3.6.4.1 第一个参数必须是`self`
+动态分发过程中，从虚表拿到函数地址后会将`data`作为第一个参数传入，如果函数第一个参数不是`self`或`self`的指针, 参数传递就会出错
+```rust
+    let (data, vptr) = demo 
+    let f = vptr[4]
+    f(data);
+```
+#### 3.6.4.2 其他位置不能使用`Self`
+函数签名中，不能再第一个参数以外的位置使用`Self`、`&Self`等含`Self`的类型
+```rust
+fn func(&self, other: Self) -> Self
+```
+```rust
+trait Test {
+    fn merge(&self, other: &Self);
+}
+
+fn fun(t1: &dyn Test, t2: &dyn Test) {
+    t1.merge(t2);
+}
+// 对于func函数来说，它只保证t1和t2是实现了Test的类型，但不能保证t1和t2最终指向了相同的类型
+```
+trait对象比不是具体的类型，而是一个抽象类型，若允许其他位置使用了`Self`的方法的动态调用，就不能保证`self`与`other: Self`的类型是一致的。
+#### 3.6.4.3 不能有泛型参数
+当函数带有泛型参数，经过单态化后可能派生出无数种具体实现
+- 问题1：无法预知会单态化出多少个版本，虚表装不下这么多函数地址
+- 问题2：不同类型单态化出的版本不同，虚表格式不统一
