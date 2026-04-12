@@ -8,7 +8,7 @@ Trait 具有四大功能:
 - 抽象接口
 - 泛型特征约束
 - 抽象类型
-- 运算符重载
+- Trait标签
 
 ## 1 抽象接口
 Trait 可以定义一些共享行为，它类似于其他语言中的接口（interface），但更加强大。 
@@ -846,5 +846,263 @@ fn process(d: &dyn Demo) {
 |  类型擦除  | 无（保留完整类型信息）| 有（擦除具体类型，只保留trait信息）|
 
 ## 3.8 多态
+多态通常分为三类:
+- 参数多态 Parametric Polymorphism
+- 特设多态 Ad-hot Polymorphism
+- 子类型多态 Subtype Polymorphism
+&nbsp;
+### 3.8.1 参数多态
+参数多态指函数或数据类型可以在不指定具体类型的情况下编写，通过类型参数来实现对多种类型的通用处理。其核心思想是编写一次代码，适用于多种类型，同时保持类型安全。
+参数多态通过泛型实现，编译器静态分发。编译器可以传入多种类型，每种类型最后的实现都是相同的，根据调用来进行单态化，从而产生符合各个类型的函数版本。
+```rust
+// 泛型写法
+fn swap<T>(a: &mut T, b: &mut T) {
+    std::mem::swap(a, b);
+}
+
+// impl Trait 写法
+fn print_debug(x: impl std::fmt::Debug) {
+    println!("{:?}", x);
+}
+```
+&nbsp;
+### 3.8.2 特设多态
+特设多态指同名的函数在不同的类型上有不同的实现。其核心思想是同一个接口，多种实现。
+特设多态通过`trait`为不同类型提供不同实现，本质就是函数重载
+```rust
+trait Hello {
+    fn hello(&self);
+}
+
+impl Hello for i32 {
+    fn hello(&self) {
+        println!("Hello from i32: {}", self);
+    }
+}
+
+impl Hello for String {
+    fn hello(&self) {
+        println!("Hello from String: {}", self);
+    }
+}
+```
+&nbsp;
+### 3.8.3 子类型多态
+子类型多态是面向对象语言中最常用的多态，即子类型对象可以代替父类型使用，往往使用父类型的引用或指针来接受子类型的对象，从而调用到子类型内部的方法。
+在Rust中虽然没有子类型和父类型的概念，但是存在特征对象。通过`trait object`实现运行时动态分发。
+```rust
+trait Shape {
+    fn area(&self) -> f64;
+}
+struct Circle { r: f64, }
+struct Square { a: f64, }
+
+impl Shape for Circle {
+    fn area(&self) -> f64 { std::f64::consts::PI * self.r * self.r }
+}
+
+impl Shape for Square {
+    fn area(&self) -> f64 { self.a * self.a }
+}
+
+// dyn Shape 可以看做是一个父类型，Circle 和 Square 可以看做是 dyn Shape 的子类型
+fn print_area(shape: &dyn Shape) {
+    println!("Area: {}", shape.area());
+}
+
+fn main() {
+    let circle = Circle { r: 5.0 };
+    let square = Square { a: 4.0 };
+    print_area(&circle);
+    print_area(&square);
+}
+```
+在Rust中，几乎没有别的地方有“对象” 这样的OOP风格表述，唯独`dyn Trait`这里使用了特征对象b表述，就是因为这里融合了非常类似与面向对象的多态思想，并且是以`C++`风格为主的多态思想。
+&nbsp;
+### 3.8.4 参数多态 VS 特设多态 VS 子类型多态
+| 特性 | 参数多态 | 特设多态 | 子类型多态|
+| :------- | :---- | :---- | :----- |
+| 实现机制 | 泛型 | `trait` | `dyn trait` |
+| 核心思想 | 一份代码，多种类型 | 同一接口，多种实现 | 父类型引用指向子类型对象 |
+| 分发时机 | 静态分发 | 静态分发 | 动态分发 |
+| 类型关系 | 无继承关系 | 接口实现关系 | is-a关系（模拟） |
+| 性能     | 零成本 | 零成本 | 虚表查找开销 |
+&nbsp;
+## 4 Trait标签
+Rust中存在一种特殊的Trait, 它内部没有任何方法，只用作标识某种性质的标签。
+> 核心标签 Trait
+> - `Sized` 标识编译器可确定大小的类型
+> - `Unsized` 标识动态大小类型(DST)
+> - `Copy` 标识可以按位复制的类型
+> - `Send` 标识可跨线程安全通信的类型
+> - `Sync` 标识可跨线程安全通信的类型
+> - `Unpin` 类型没有自引用结构，可被安全移动
+&nbsp;
+## 5 常用Trait
+### 5.1 类型转换
+#### 5.1.1 `From` / `Into`
+在类型系统中，类型转换是绕不开的需求，最核心的两个转换Trait就是`From`和`Into`
+> 核心关系
+> - `From<T> for U` 如何把 T 转成 U
+> - `Into<T> for U` 如何把 U 转成 T
+> - 实现`From` 自动获得 `Into`
+```rust
+#[derive(Debug)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+// 为 Point 实现 From trait，使其能够从一个(i32, i32)的元组转换而来
+impl From<(i32, i32)> for Point {
+    fn from(tuple: (i32, i32)) -> Self {
+        Point { x: tuple.0, y: tuple.1 }
+    }
+}
+
+impl From<Point> for (i32, i32) {
+    fn from(point: Point) -> Self {
+        (point.x, point.y)
+    }
+}
+
+fn main() {
+    // 使用 From trait 进行转换
+    let point: Point = Point::from((5, 10));
+    println!("{point:?}");
+
+    // 使用 Into trait 进行转换
+    let another_point: Point = (15, 20).into();
+    println!("{another_point:?}");
+
+    // 将 Point 转换回元组
+    let tuple: (i32, i32) = point.into();
+    println!("{tuple:?}");
+
+    let another_tuple: (i32, i32) = <(i32, i32)>::from(another_point);
+    println!("{another_tuple:?}");
+}
+```
+&nbsp;
+#### 5.1.2 `AsRef` / `AsMut`
+`AsRef`和`AsMut`用于获取某种类型的引用，常用于字符串转换等场景
+```rust
+pub trait AsRef<T: ?Sized> {
+    fn as_ref(&self) -> &T;
+}
+
+pub trait AsMut<T: ?Sized> {
+    fn as_ref(&mut self) -> &mut T;
+}
+```
+```rust
+fn show_str(s: &str) {
+    println!("{s}");
+}
+
+fn main() {
+    let s1 = "Hello";
+    let s2 = String::from("World");
+
+    show_str(s1);
+    // show_str(s2);        // ❌ 类型不匹配
+    show_str(s2.as_ref());  // ✅ 使用 as_ref() 将 String 转换为 &str
+    show_str(&s2);          // ✅ 使用 & 操作符将 String 转换为 &str
+}
+```
+&nbsp;
+### 5.2 格式化
+#### 5.2.1 `Default`
+`Default`用来给一个类型的实例默认值
+```rust
+pub trait Default {
+    fn default() -> Self;
+}
+```
+- 当一个类似的字段都实现了`Default`, 可使用`#[derive(Default)]`为其自动实现
+- 与结构体更新语法搭配，使用`..Default::default()` 来填充剩余字段
+```rust
+#[derive(Default)]
+struct Config {
+    debug: bool,
+    retries: u32,
+}
+
+fn main() {
+    let c1 = Config::default();
+
+    // 与结构体更新语法搭配
+    let c2 = Config {
+        debug: true,
+        ..Default::default()  // 使用 ..Default::default() 来填充剩余字段
+    };
+}
+```
+&nbsp;
+#### 5.2.2 `Debug`
+`Debug`是最常用的调试打印特征，它到应到`println`内部的大括号格式输出
+> 输出格式
+> - `{:?}`  紧凑模式
+> - `{:#?}`  展开模式
+-  `Debug`大部分无需手动实现，使用`#[derive(Debug)]`即可
+```rust
+#[derive(Debug)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+fn main() {
+    let p = Point { x: 3, y: 4 };
+    println!("{p:?}");
+    println!("{p:#?}");
+}
+```
+- 也可手动实现Debug, 定制输出格式
+```rust
+use std::fmt::{self, Debug, Formatter};
+
+#[derive(Default)]
+struct Config {
+    debug: bool,
+    retries: u32,
+}
+
+// 手动实现Debug, 定制输出格式
+impl Debug for Config {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "debug is [{}], retries is [{}]", self.debug, self.retries)
+    }
+}
+
+fn main() {
+    let c = Config::default();
+    println!("{c:?}");
+}
+```
+&nbsp;
+#### 5.2.3 `Display`
+`Display`用于向用户输出，而`Debug`一般用于调试
+- `Display`不能`derive`, 需要自定义输出格式
+- `Display`实现方法与`Debug`类似
+```rust
+use std::fmt::{self, Display, Formatter};
+
+struct Point { x: i32, y: i32 }
+
+impl Display for Point {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "Point {{ x: {}, y: {} }}", self.x, self.y)
+    }
+}
+
+fn main() {
+    let p = Point { x: 3, y: 4 };
+    println!("{p}");    //  可直接使用 {} 来输出
+}
+```
+&nbsp;
+### 5.3 运算符
+#### 5.3.1 算术运算 Trait
 
 
