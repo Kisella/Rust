@@ -106,6 +106,7 @@
 - for循环中使用`hashmap.iter()`或`&hashmap`来遍历键值对
 - 使用`hashmap.keys()`遍历键
 - 使用`hashmap.values()`遍历值
+- `HashMap`的迭代是**无序**的
 ```rust
     let vec = vec![(1, "value1".to_string()), (2, "value2".to_string())];
     let hashmap = vec.into_iter().collect::<HashMap<_,_>>();
