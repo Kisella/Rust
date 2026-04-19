@@ -13,5 +13,8 @@ fn main() {
     assert_eq!(yellow_score, 50);
     assert_eq!(scores.remove("yellow"), None);
 
+    let mut scores = HashMap::from([("blue", 10), ("yellow", 50), ("red", 20)]);
+    assert_eq!(scores["red"], 20);  // ✅ HashMap实现了Index特征
+    // scores["blue"] = 25; //         ❌ HashMap未实现IndexMut特征
 }
 

@@ -1,23 +1,12 @@
 // 定义对象
-struct Duck {
-    name: String,
-    color: String,
-}
-struct Person {
-    name: String,
-    age: u32,
-}
-struct Dog {
-    name: String,
-    breed: String,
-}
-
+struct Duck;
+struct Person;
+struct Dog;
 // 定义共同行为
 trait Swimmer: Sized {
     fn swim(&self);
 }
 
-// Duck, Person, Dog都实现了Swimmer特质，所有都属于抽象类型&dyn Swimmer
 impl Swimmer for Duck {
     fn swim(&self) {
         println!("Duck paddles through the pond.");
@@ -34,17 +23,17 @@ impl Swimmer for Dog {
     }
 }
 
-// 定义函数，接受一个Trait Object作为参数参数
-fn make_swim(swimmer: &dyn Swimmer) {
-    swimmer.swim();
-}
+// ❌ Swimmer特征被限定为Sized，因此不能用作Trait Object，以下代码将无法编译
+// fn make_swim(swimmer: &dyn Swimmer) {
+//     swimmer.swim();
+// }
 
 fn main() {
     let duck = Duck;
     let person = Person;
     let dog = Dog;
 
-    make_swim(&duck);
-    make_swim(&person);
-    make_swim(&dog);
+    // make_swim(&duck);
+    // make_swim(&person);
+    // make_swim(&dog);
 }

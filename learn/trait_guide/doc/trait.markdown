@@ -598,7 +598,7 @@ where
 ## 3 抽象类型
 在面向对象语言中，父类型可以接收子类型为参数，从而实现多态。例如`Duck`、`Person`、`Dog`都可以游泳，都有`swim`方法，都继承`Swimmer`类，函数参数接收`Swimmer`指针，实际可传入任意子类型。
 Rust不是原生的面向对象语言，但提供类似的机制，即特征对象(**Trait Object**)
-## 3.1 Trait Object
+### 3.1 Trait Object
 把实现了某个Trait的所有类型看做一个集合，这个集合又可以看做一个新的抽象的类型，称作特征对象
 - 函数参数类型声明中使用`&dyn Trait`声明接收一个特征对象
 - 特征对象必须基于借用、指针、智能指针来间接使用
@@ -646,12 +646,12 @@ fn main() {
 }
 ```
 &nbsp;
-## 3.2 动态大小类型
+### 3.2 动态大小类型
 对于一个Trait来说，它可以被多个类型实现，而实现它的各种类型之间大小可能是不同的。故特征对象`dyn Trait`是一个动态大小类型(DST)。动态大小类型不能在函数中直接使用，因为函数的栈帧大小需要在编译期就要确定，因此需要一个指针来间接操作动态大小类型。
 - 实现Trait的类型的大小是不确定的
 - 特征对象作为一个大小不确定的抽象类型只能通过指针作为函数参数
 &nbsp;
-## 3.3 虚表
+### 3.3 虚表
 指向特征对象的指针`&dyn Trait`是一个**胖指针**，包含`data`指针和`v-ptr`指针两部分
 - `data`指针指向`Self`, 即实现了该Trait的具体类型
 - `v-ptr`指向`v-table`, 即**虚表**，虚表中存储了类型`Self`的信息，包括size、对其方式、trait方法等
@@ -659,7 +659,7 @@ fn main() {
 
 通过`data`和`v-ptr`这两个指针，特征对象在调用方法时就可以方便地获得函数地址和传递参数
 &nbsp;
-## 3.4 动态分发
+### 3.4 动态分发
 在调用特征对象对应Trait方法时，首先将胖指针`&dyn Trait`拆成`data`和`v-ptr`, 随后依据固定的虚表布局找到对应偏移量的函数指针，直接通过这个函数指针将参数传递就完成了调用。
 ```rust
     let (data, vptr) = demo // 拆胖指针
@@ -671,7 +671,7 @@ fn main() {
 - 一个类型实现了某个trait时就会生成对应的虚表
 - 同一个类型的所有实例共用同一张虚表
 - 运行时特征对象通过查虚表，即时获得函数的地址
-## 3.5 多Trait动态分发
+### 3.5 多Trait动态分发
 实际开发中，时常会遇到需要对实现了多个Trait的类型进行动态分发的场景
 - 某类型同时实现了多个Trait
 - 在运行时通过特征对象来调用这些trait方法
@@ -724,14 +724,14 @@ fn main() {
     call_all(&s);
 }
 ```
-## 3.6 动态分发限制
+### 3.6 动态分发限制
 一个Trait能够成为特征对象并进行动态分发，它就被称为`dyn-compatible`, `dyn-compatible`必须满足以下五个条件：
 - SurperTrait都是`dyn-compatible`
 - SurperTrait中不能有`Sized`
 - 不能有关联常量
 - 不能有带泛型的关联类型
 - 所有函数必须可动态分发或显式标记为不可调用
-### 3.6.1 SurperTrait中不能有`Sized`
+#### 3.6.1 SurperTrait中不能有`Sized`
 `Sized`是一个原生的Trait, 他表示类型的大小是固定的。而特征对象是一个动态大小类型，没有确定的大小，这与`Sized`约束存在根本性冲突。
 -  绝大部分Trait默认依赖`?Sized`, 表示不限制类型的大小
 -  当一个Trait受到`Sized`约束，它就不能作为Trait对象
@@ -739,7 +739,7 @@ fn main() {
 trait Demo: Sized {} // 不能作为Trait对象
 ```
 &nbsp;
-### 3.6.2 不能有关联常量
+#### 3.6.2 不能有关联常量
 方法可以通过虚表动态分发到正确的函数指针，但常量不是函数调用，无法通过虚表动态查找一个常量的值。故Trait对象要禁止关联常量
 ```rust
 trait Foo {
@@ -751,23 +751,23 @@ impl Foo for u16 { const A: i32 = 2; }
 // 问题： 如果有一个 Box<dyn Foo>, 那么dyn Foo: A 应该是1还是2?
 ```
 &nbsp;
-### 3.6.3 不能有泛型关联类型
+#### 3.6.3 不能有泛型关联类型
 关联类型往往在对应方法中使用，用户每指定一个泛型作为关联类型，就会单态化出一个新版的函数，最后导致虚表大小不确定，格式不一致。故Trait对象要禁止泛型关联类型。
 &nbsp;
-### 3.6.4 可动态分发的函数
+#### 3.6.4 可动态分发的函数
 并不是Trait内部的方法都会进入虚表，只有可通过特征对象动态分发的方法才会进入虚表，
 可动态分发的函数必须满足3个条件：
 - 必须使用`self`或可解引用为`self`的类型作为第一个参数（即实例方法）
 - 函数签名中不能在第一个参数以外的位置使用`Self`
 - 不能有泛型参数
-#### 3.6.4.1 第一个参数必须是`self`
+##### 3.6.4.1 第一个参数必须是`self`
 动态分发过程中，从虚表拿到函数地址后会将`data`作为第一个参数传入，如果函数第一个参数不是`self`或`self`的指针, 参数传递就会出错
 ```rust
     let (data, vptr) = demo 
     let f = vptr[4]
     f(data);
 ```
-#### 3.6.4.2 其他位置不能使用`Self`
+##### 3.6.4.2 其他位置不能使用`Self`
 函数签名中，不能在第一个参数以外的位置使用`Self`、`&Self`等含`Self`的类型
 ```rust
 fn func(&self, other: Self) -> Self
@@ -783,12 +783,12 @@ fn fun(t1: &dyn Test, t2: &dyn Test) {
 // 对于func函数来说，它只保证t1和t2是实现了Test的类型，但不能保证t1和t2最终指向了相同的类型
 ```
 特征对象是一个抽象类型，它的类型信息被擦除了，若允许其他位置使用了`Self`的方法的动态调用，不能保证`self`与`other: Self`的类型是一致的。
-#### 3.6.4.3 不能有泛型参数
+##### 3.6.4.3 不能有泛型参数
 当函数带有泛型参数，经过单态化后可能派生出无数种具体实现
 - 问题1：无法预知会单态化出多少个版本，虚表装不下这么多函数地址
 - 问题2：不同类型单态化出的版本不同，虚表格式不统一
 &nbsp;
-#### 3.6.4.4 显式标记为不可调用
+##### 3.6.4.4 显式标记为不可调用
 如果某个函数违背了可动态分发的规则，必须显式标记为不可调用，否则trait不能动态分发
 - 函数签名中添加`where Self: Sized`, 标记方法不可用于trait对象
 ```rust
@@ -824,7 +824,7 @@ fn process(d: &dyn Demo) {
 }
 ```
 &nbsp;
-## 3.7 静态分发 VS 动态分发
+### 3.7 静态分发 VS 动态分发
 
 |  对比维度  | 静态分发 | 动态分发|
 | :------: | :--- | :----- |
@@ -845,13 +845,13 @@ fn process(d: &dyn Demo) {
 |  调用开销  | 直接调用或内联（最快）| 间接调用（虚表查找）|
 |  类型擦除  | 无（保留完整类型信息）| 有（擦除具体类型，只保留trait信息）|
 
-## 3.8 多态
+### 3.8 多态
 多态通常分为三类:
 - 参数多态 Parametric Polymorphism
 - 特设多态 Ad-hot Polymorphism
 - 子类型多态 Subtype Polymorphism
 &nbsp;
-### 3.8.1 参数多态
+#### 3.8.1 参数多态
 参数多态指函数或数据类型可以在不指定具体类型的情况下编写，通过类型参数来实现对多种类型的通用处理。其核心思想是编写一次代码，适用于多种类型，同时保持类型安全。
 参数多态通过泛型实现，编译器静态分发。编译器可以传入多种类型，每种类型最后的实现都是相同的，根据调用来进行单态化，从而产生符合各个类型的函数版本。
 ```rust
@@ -866,7 +866,7 @@ fn print_debug(x: impl std::fmt::Debug) {
 }
 ```
 &nbsp;
-### 3.8.2 特设多态
+#### 3.8.2 特设多态
 特设多态指同名的函数在不同的类型上有不同的实现。其核心思想是同一个接口，多种实现。
 特设多态通过`trait`为不同类型提供不同实现，本质就是函数重载
 ```rust
@@ -887,7 +887,7 @@ impl Hello for String {
 }
 ```
 &nbsp;
-### 3.8.3 子类型多态
+#### 3.8.3 子类型多态
 子类型多态是面向对象语言中最常用的多态，即子类型对象可以代替父类型使用，往往使用父类型的引用或指针来接受子类型的对象，从而调用到子类型内部的方法。
 在Rust中虽然没有子类型和父类型的概念，但是存在特征对象。通过`trait object`实现运行时动态分发。
 ```rust
@@ -919,7 +919,7 @@ fn main() {
 ```
 在Rust中，几乎没有别的地方有“对象” 这样的OOP风格表述，唯独`dyn Trait`这里使用了特征对象b表述，就是因为这里融合了非常类似与面向对象的多态思想，并且是以`C++`风格为主的多态思想。
 &nbsp;
-### 3.8.4 参数多态 VS 特设多态 VS 子类型多态
+#### 3.8.4 参数多态 VS 特设多态 VS 子类型多态
 | 特性 | 参数多态 | 特设多态 | 子类型多态|
 | :------- | :---- | :---- | :----- |
 | 实现机制 | 泛型 | `trait` | `dyn trait` |
@@ -1103,6 +1103,150 @@ fn main() {
 ```
 &nbsp;
 ### 5.3 运算符
+运算符 Trait 指控制运算符行为的一类特质，它允许类型可以使用特定的运算符进行特定的操作。算数运算符通常定义在`std::ops`模块下。
 #### 5.3.1 算术运算 Trait
+算数运算 Trait 用于控制运算符 `+ - * / %` 等的行为，类似的算术运算 Trait 有`Add`、`Sub`、`Mul`、`Div`、`Rem`
+```rust
+pub trait Add<Rhs = Self> {
+    type Output;
+    fn add(self, rhs: Rhs) -> Self::Output;
+}
+```
+```rust
+use std::ops::Add;
+struct Point {
+    x: f64,
+    y: f64,
+}
+impl Add for Point {
+    type Output = Point;
+    fn add(self, other: Point) -> Point {
+        Point {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+}
+fn main() {
+    let p1 = Point { x: 1.0, y: 2.0 };
+    let p2 = Point { x: 3.0, y: 4.0 };
+    let p3 = p1 + p2;   //  实现了Add特征的类型可以进行加法运算
+    println!("p3: ({}, {})", p3.x, p3.y);
+}
+```
+&nbsp;
+#### 5.3.2 赋值运算 Trait
+赋值运算 Trait 控制`+= -= *= /= %=`等原地修改修改运算符，类似的赋值运算 Trait 有 `AddAssign`、`SubAssign`、`MulAssign`、`DivAssign`、`RemAssign`
+```rust
+pub trait AddAssign<Rhs = Self> {
+    fn add_assign(&mut self, rhs: Rhs);
+}
+``` 
+```rust
+use std::ops::AddAssign;
+struct Point {
+    x: f64,
+    y: f64,
+}
+impl AddAssign for Point {
+    fn add_assign(&mut self, other: Point) {
+        self.x += other.x;
+        self.y += other.y;
+    }
+}
+fn main() {
+    let p1 = Point { x: 1.0, y: 2.0 };
+    let mut p2 = Point { x: 3.0, y: 4.0 };
+    p2 += p1;   
+    println!("p2: ({}, {})", p2.x, p2.y);
+}
+```
+&nbsp;
+#### 5.3.3 一元符号 `Neg`
+`Neg`特征用于控制表达式前面的负号
+```rust
+pub trait Neg {
+    type Output;
+    fn neg(self) -> Self::Output;
+}
+```
+```rust
+use std::ops::Neg;
+struct Point {
+    x: f64,
+    y: f64,
+}
+impl Neg for Point {
+    type Output = Point;
+    fn neg(self) -> Point {
+        Point {
+            x: -self.x,
+            y: -self.y,
+        }
+    }
+}
+fn main() {
+    let p1 = Point { x: 1.0, y: 2.0 };
+    let p2 = -p1;   //  实现了Neg特征的类型可以进行取反运算
+    println!("p2: ({}, {})", p2.x, p2.y);
+}
+```
+&nbsp;
+#### 5.3.4 索引操作`Index`/`IndexMut`
+`Index`/`IndexMut`特征用于控制通过方括号`[]`进行索引访问的行为
+```rust
+pub trait Index<Idx> {
+    type Output;
+    fn index(&self, index: Idx) -> &self::Output;
+}
+pub trait IndexMut<Idx>: Index<Idx> {
+    fn index_mut(&mut self, index: Idx) -> &mut Self::Output;
+}
+```
+```rust
+use std::{ops::{Index, IndexMut}};
 
+struct Matrix {
+    data: Vec<f64>,
+    cols: usize,
+}
+
+impl Index<(usize, usize)> for Matrix {
+    type Output = f64;
+    fn index(&self, (row, col): (usize, usize)) -> &Self::Output {
+        &self.data[row * self.cols + col]
+    }
+}
+
+impl IndexMut<(usize, usize)> for Matrix {
+    fn index_mut(&mut self, (row, col): (usize, usize)) -> &mut Self::Output {
+        &mut self.data[row * self.cols + col]
+    }
+}
+
+fn main() {
+    let mut m = Matrix {
+        data: vec![1.0, 2.0, 3.0, 4.0],
+        cols: 2,
+    };
+    assert_eq!(m[(0, 1)], 2.0);
+    m[(1, 0)] = 5.0; // 修改元素
+    assert_eq!(m.data, [1.0, 2.0, 5.0, 4.0]);
+}
+```
+&nbsp;
+#### 5.3.5 运算符 Trait 汇总
+常见的运算符 Trait 如下：
+|运算符 / 语义|Trait|核心方法|
+|------------|:------:|-------------|
+|一元符号`-x`|`Neg`|`fn neg(self) -> Output`|
+|逻辑/按位非`!x`|`Not`|`fn not(self) -> Output`|
+|加法`a + b`|`Add`|`fn add(self, rhs: Rhs) -> Output`|
+|减法`a - b`|`Sub`|`fn sub(self, rhs: Rhs) -> Output`|
+|乘法`a * b`|`Mul`|`fn mul(self, rhs: Rhs) -> Output`|
+|除法`a / b`|`Div`|`fn div(self, rhs: Rhs) -> Output`|
+|取余`a % b`|`Rem`|`fn rem(self, rhs: Rhs) -> Output`|
+|索引`a[b]`|`Index`/`IndexMut`|`fn index(&self, Idx) -> &Output`|
+
+&nbsp;
 

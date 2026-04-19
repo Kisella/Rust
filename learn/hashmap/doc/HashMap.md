@@ -6,7 +6,7 @@
 - 对于同一个`HashMap`, `K`类型必须相同，`V`类型也必须相同
 - 使用`use std::collections::HashMap`引入路径
 &nbsp;
-## 2 创建HaspMap
+## 2 创建
 - 使用`HashMap::new()`函数创建空`HashMap`
 - `<K, V>`泛型参数类型必须被唯一确定，可以在声明变量时显式指定，也可通过后续插入键值对使编译器能推导类型
 ```rust
@@ -48,6 +48,12 @@
 
     *red_score = 30; // 修改 red 对应的值
     assert_eq!(scores.get("red"), Some(&30));
+```
+- `HashMap`自动实现了`Index`特征，可以使用键作索引获取值
+```rust
+    let mut scores = HashMap::from([("blue", 10), ("yellow", 50), ("red", 20)]);
+    assert_eq!(scores["red"], 20);  // ✅ HashMap实现了Index特征
+    // scores["blue"] = 25; //         ❌ HashMap未实现IndexMut特征
 ```
 &nbsp;
 - 使用`hashmap.remove(&K)`方法获取键对应值的所有权，同时删除原有键值对
